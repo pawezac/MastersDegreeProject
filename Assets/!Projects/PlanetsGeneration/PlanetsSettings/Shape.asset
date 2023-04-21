@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d51c7f25581fca945905ba1e75a11139, type: 3}
+  m_Name: Shape
+  m_EditorClassIdentifier: 
+  planetRadius: 2.72
+  noiseLayers:
+  - enabled: 1
+    useFirstLayerAsMask: 0
+    noiseSettings:
+      NoiseFilterType:
+        GuidAssignmentFailed: 0
+        GUID: 87385482019230e4194e16b0de67093a
+        _typeNameAndAssembly: SimpleNoiseFilter, Assembly-CSharp
+        _suppressLogs: 0
+      simpleNoiseSettings:
+        Strength: 0.04
+        Roughness: 1.06
+        BaseRoughness: 5.62
+        Persistence: 1.14
+        minVal: 3.14
+        Centre: {x: 0, y: 0, z: 0}
+        numOfNoiseLayers: 4
+      rigidNoiseSettings:
+        Strength: 0
+        Roughness: 0
+        BaseRoughness: 0
+        Persistence: 0
+        minVal: 0
+        Centre: {x: 0, y: 0, z: 0}
+        numOfNoiseLayers: 0
+        weightMultiplier: 0
+  - enabled: 1
+    useFirstLayerAsMask: 1
+    noiseSettings:
+      NoiseFilterType:
+        GuidAssignmentFailed: 0
+        GUID: 87385482019230e4194e16b0de67093a
+        _typeNameAndAssembly: SimpleNoiseFilter, Assembly-CSharp
+        _suppressLogs: 0
+      simpleNoiseSettings:
+        Strength: 0
+        Roughness: 0
+        BaseRoughness: 0
+        Persistence: 0
+        minVal: 0
+        Centre: {x: 0, y: 0, z: 0}
+        numOfNoiseLayers: 0
+      rigidNoiseSettings:
+        Strength: 0
+        Roughness: 0
+        BaseRoughness: 0
+        Persistence: 0
+        minVal: 0
+        Centre: {x: 0, y: 0, z: 0}
+        numOfNoiseLayers: 0
+        weightMultiplier: 0
