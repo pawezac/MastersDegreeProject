@@ -17,18 +17,14 @@ MonoBehaviour:
   - enabled: 1
     useFirstLayerAsMask: 0
     noiseSettings:
-      NoiseFilterType:
-        GuidAssignmentFailed: 0
-        GUID: 87385482019230e4194e16b0de67093a
-        _typeNameAndAssembly: SimpleNoiseFilter, Assembly-CSharp
-        _suppressLogs: 0
+      filterType: 0
       simpleNoiseSettings:
-        Strength: 0.04
-        Roughness: 1.06
-        BaseRoughness: 5.62
-        Persistence: 1.14
-        minVal: 3.14
-        Centre: {x: 0, y: 0, z: 0}
+        Strength: 0.07
+        Roughness: 2.2
+        BaseRoughness: 1.15
+        Persistence: 0.5
+        minVal: 0.98
+        Centre: {x: 1.11, y: 0.92, z: -0.39}
         numOfNoiseLayers: 4
       rigidNoiseSettings:
         Strength: 0
@@ -42,13 +38,9 @@ MonoBehaviour:
   - enabled: 1
     useFirstLayerAsMask: 1
     noiseSettings:
-      NoiseFilterType:
-        GuidAssignmentFailed: 0
-        GUID: 87385482019230e4194e16b0de67093a
-        _typeNameAndAssembly: SimpleNoiseFilter, Assembly-CSharp
-        _suppressLogs: 0
+      filterType: 1
       simpleNoiseSettings:
-        Strength: 0
+        Strength: 0.05
         Roughness: 0
         BaseRoughness: 0
         Persistence: 0
@@ -56,11 +48,11 @@ MonoBehaviour:
         Centre: {x: 0, y: 0, z: 0}
         numOfNoiseLayers: 0
       rigidNoiseSettings:
-        Strength: 0
-        Roughness: 0
-        BaseRoughness: 0
-        Persistence: 0
-        minVal: 0
+        Strength: 1.42
+        Roughness: 3.3
+        BaseRoughness: 1.59
+        Persistence: 0.5
+        minVal: 0.37
         Centre: {x: 0, y: 0, z: 0}
-        numOfNoiseLayers: 0
-        weightMultiplier: 0
+        numOfNoiseLayers: 4
+        weightMultiplier: 0.78

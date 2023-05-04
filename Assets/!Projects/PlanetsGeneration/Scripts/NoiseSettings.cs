@@ -1,15 +1,16 @@
-﻿using System;
+﻿using NaughtyAttributes;
+using System;
 using TypeReferences;
 using UnityEngine;
 
 [Serializable]
 public class NoiseSettings 
 {
-    [Inherits(typeof(INoiseFilter))]
-    public TypeReference NoiseFilterType;
+    public enum FilterType { SimpleFilter, RigidFilter}
+    public FilterType filterType;
 
-    public SimpleNoiseSettings simpleNoiseSettings = new SimpleNoiseSettings();
-    public RigidNoiseSettings rigidNoiseSettings = new RigidNoiseSettings();
+    [ShowIf(nameof(filterType), FilterType.SimpleFilter), AllowNesting] public SimpleNoiseSettings simpleNoiseSettings = new SimpleNoiseSettings();
+    [ShowIf(nameof(filterType), FilterType.RigidFilter), AllowNesting] public RigidNoiseSettings rigidNoiseSettings = new RigidNoiseSettings();
 
     [Serializable]
     public class SimpleNoiseSettings
