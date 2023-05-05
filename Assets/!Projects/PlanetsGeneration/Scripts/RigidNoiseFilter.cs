@@ -32,7 +32,7 @@ public class RigidNoiseFilter : INoiseFilter
             amplitude *= settings.Persistence; //when Persistence is more than one amplitude will decrease with each layer
         }
 
-        noiseValue = Mathf.Max(0, noiseValue - settings.minVal);
+        noiseValue = noiseValue - settings.minVal;
         return noiseValue * settings.Strength;
     }
 }

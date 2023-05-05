@@ -21,7 +21,7 @@ public class Planet : MonoBehaviour
     Vector3[] directions = { Vector3.up, Vector3.down, Vector3.left, Vector3.right, Vector3.forward, Vector3.back };
     ShapeGenerator shapeGenerator = new ShapeGenerator();
     ColorGenerator colorGenerator = new ColorGenerator();
-    int sidesNum = 6;
+    public static int sidesNum = 6;
 
     void Initialize()
     {
