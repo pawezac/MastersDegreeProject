@@ -2,26 +2,29 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class MinMax
+namespace PlanetsGeneration
 {
-    public MinMax()
+    public class MinMax
     {
-        Max = float.MinValue;
-        Min = float.MaxValue;
-    }
-
-    public float Min { get; private set; }
-    public float Max { get; private set; }
-
-    public void AddValue(float value)
-    {
-        if (value > Max)
+        public MinMax()
         {
-            Max = value;
+            Max = float.MinValue;
+            Min = float.MaxValue;
         }
-        if (value < Min)
+
+        public float Min { get; private set; }
+        public float Max { get; private set; }
+
+        public void AddValue(float value)
         {
-            Min = value;
+            if (value > Max)
+            {
+                Max = value;
+            }
+            if (value < Min)
+            {
+                Min = value;
+            }
         }
     }
 }

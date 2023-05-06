@@ -3,17 +3,20 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu()]
-public class ShapeSettings : ScriptableObject
+namespace PlanetsGeneration
 {
-    public float planetRadius = 1;
-    public NoiseLayer[] noiseLayers;
-
-    [Serializable]
-    public class NoiseLayer
+    [CreateAssetMenu()]
+    public class ShapeSettings : ScriptableObject
     {
-        public bool enabled = true;
-        public bool useFirstLayerAsMask;
-        public NoiseSettings noiseSettings = new NoiseSettings();
+        public float planetRadius = 1;
+        public NoiseLayer[] noiseLayers;
+
+        [Serializable]
+        public class NoiseLayer
+        {
+            public bool enabled = true;
+            public bool useFirstLayerAsMask;
+            public NoiseSettings noiseSettings = new NoiseSettings();
+        }
     }
 }
