@@ -6,6 +6,7 @@ namespace LandmassProceduralGeneration
     {
         public static MeshData GenerateTerrainMesh(float[,] heightMap, float heightMult, AnimationCurve meshHeightCurve, int levelOfDetail)
         {
+            AnimationCurve heightCurve = new AnimationCurve(meshHeightCurve.keys);
             int width = heightMap.GetLength(0);
             int height = heightMap.GetLength(1);
 
@@ -23,7 +24,7 @@ namespace LandmassProceduralGeneration
             {
                 for (int x = 0; x < width; x += meshSimplificationIncrement)
                 {
-                    meshData.vertices[vertexIdx] = new Vector3(topLeftX + x, meshHeightCurve.Evaluate(heightMap[x, y]) * heightMult, topLeftZ - y);
+                    meshData.vertices[vertexIdx] = new Vector3(topLeftX + x, heightCurve.Evaluate(heightMap[x, y]) * heightMult, topLeftZ - y);
                     meshData.uvs[vertexIdx] = new Vector2(x / (float)width, y / (float)height);
                     if (x < width - 1 && y < height - 1) //ignore right and bottom edge of indexes for iteration
                     {

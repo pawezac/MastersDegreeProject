@@ -8,13 +8,14 @@ namespace LandmassProceduralGeneration
         private bool isDrawModeForTexture2D => mapGenerator.IsDrawModeForTexture2D;
         private bool isDrawModeForMesh => mapGenerator.IsDrawModeForMesh;
 
+        public Material MeshPreviewMat => meshPreviewMat;
+
         [Label("General Properties")]
         [Space(10)]
         [SerializeField, ReadOnly] MapGenerator mapGenerator;
 
         [ShowIf(nameof(isDrawModeForTexture2D))]
         [SerializeField, HideInInspector] GameObject planePreview;
-        [ShowIf(nameof(isDrawModeForTexture2D))]
         [SerializeField, OnValueChanged(nameof(ToggleWorldPreview))] bool worldPreviewEnabled = true;
 
         [Space(10), Label("2D Preview Properties")]
