@@ -90,5 +90,11 @@ namespace LandmassProceduralGeneration
                 TryGetComponent(out mapGenerator);
             }
         }
+
+        private void Awake()
+        {
+            worldPreviewEnabled = false;
+            ToggleWorldPreview();
+        }
     }
 }

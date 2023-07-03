@@ -1,0 +1,94 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Main
+
+#include "NMGPyramidComputeHelpers.hlsl"
+
+
+//this describes a vertex on the source mesh
+struct SourceVertex
+{
+	float3 positionOS; //pos in obj space
+	float uv;
+};
+
+//this describes a vertex on the generated mesh
+struct DrawVertex
+{
+	float3 positionWS; //position in world space
+	float2 uv;
+};
+
+//we have to insert three draw vertices at once so the triangle stays connected
+//in the graphics shader. This structure does that. Basically wrapper around 3 vertices
+struct DrawTriangle
+{
+	float3 normalWS; // normal in world space , all points share this normal
+	DrawVertex verticies[3]; // verticies need to be outputed as one object cause of how gpu works
+};
+
+//compute buffers that shader will use (basically arrays)
+StructuredBuffer<SourceVertex> _SourceVertices;
+StructuredBuffer<int> _SourceTriangles;
+AppendStructuredBuffer<DrawTriangle> _DrawTriangles;
+
+//other variables set by renderer script
+
+int _numSourceTriangles;
+float _pyramidHeight;
+float4x4 _localToWorld;
+
+//this converts a source vertex into a draw vertex by converting from os to ws
+DrawVertex TransformToWorldSpace(SourceVertex v)
+{
+	DrawVertex o;
+	o.positionWS = mul(_localToWorld,float4(v.positionOS,1)).xyz;
+	o.uv = v.uv;
+	return o;
+}
+
+void SetupAndOutputTriangle(DrawVertex a, DrawVertex b, DrawVertex c)
+{
+	//since we extrude the center face , the normal must be rcalculated
+	float3 normalWS = GetNormalFromTriangle(a.positionWS, b.positionWS, c.positionWS);
+
+	//create a draw trinagle from three points
+	DrawTriangle tri;
+	tri.normalWS = normalWS;
+	tri.verticies[0] = a;
+	tri.verticies[1] = b;
+	tri.verticies[2] = c;
+
+	//add the output tri to the output buffer
+	_DrawTriangles.Append(tri);
+}
+
+//this is the number of threads to create per dispatch. this kernel only uses the x val so you can fine tune that if needed
+[numthreads(128,1,1)]
+void Main(uint3 id : SV_DISPATCHTHREADID)
+{
+	//dispatches can only be in chunks of 128, there might be more threads than number of trianglers . return in that case
+	if((int)id.x >= _numSourceTriangles) return;
+
+	//get vertices which make up that triangle
+	//the triangle array contains indices to the vertex array
+	//three values in the triangle array describe one triangle in the source mesh
+	int triStart = id.x * 3;
+	DrawVertex inputs[3];
+	inputs[0] = TransformToWorldSpace(_SourceVertices[_SourceTriangles[triStart]]);
+	inputs[1] = TransformToWorldSpace(_SourceVertices[_SourceTriangles[triStart+1]]);
+	inputs[2] = TransformToWorldSpace(_SourceVertices[_SourceTriangles[triStart+2]]);
+
+	DrawVertex center;
+	//we need the triangle's normal to extrude the center point
+	float3 triNormal = GetNormalFromTriangle(inputs[0].positionWS, inputs[1].positionWS, inputs[2].positionWS);
+	//find the center position and extrude by _pyramidHeight along the normal
+	
+	center.positionWS = GetTriangleCenter(inputs[0].positionWS, inputs[1].positionWS, inputs[2].positionWS) + triNormal * _pyramidHeight;
+	//average uvs for smooth texturing
+	center.uv = GetTriangleCenter(inputs[0].uv, inputs[1].uv, inputs[2].uv);
+	
+	//create the three triangles
+	SetupAndOutputTriangle(inputs[0],inputs[1],center);
+	SetupAndOutputTriangle(inputs[1],inputs[2],center);
+	SetupAndOutputTriangle(inputs[2],inputs[0],center);
+}

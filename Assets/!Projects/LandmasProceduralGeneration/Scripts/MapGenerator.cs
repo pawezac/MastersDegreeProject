@@ -16,7 +16,7 @@ namespace LandmassProceduralGeneration
         public Color Colour;
     }
 
-    public enum DrawMode { NoiseMap, ColourMap, Mesh }
+    public enum DrawMode { NoiseMap, ColourMap, Mesh, FallOffMap }
 
     public class MapGenerator : MonoBehaviour
     {
@@ -26,6 +26,7 @@ namespace LandmassProceduralGeneration
 
         [Space(5)]
         [BoxGroup(generalPropertiesTab), SerializeField, OnValueChanged(nameof(Refresh))] DrawMode drawMode;
+        [BoxGroup(generalPropertiesTab), SerializeField, OnValueChanged(nameof(Refresh))] Noise.NormalizeMode normalizeMode;
         [BoxGroup(generalPropertiesTab)][SerializeField, ReadOnly] MapDisplay mapDisplay;
         [Space(5)]
         [BoxGroup(generalPropertiesTab), SerializeField, OnValueChanged(nameof(Refresh))] float noiseScale;
@@ -36,16 +37,20 @@ namespace LandmassProceduralGeneration
         [Space(5)]
         [BoxGroup(generalPropertiesTab), SerializeField, OnValueChanged(nameof(Refresh))] int seed;
         [BoxGroup(generalPropertiesTab), SerializeField, OnValueChanged(nameof(Refresh))] Vector2 offset;
+        [BoxGroup(generalPropertiesTab), SerializeField, OnValueChanged(nameof(Refresh))] bool applyFalloffMap;
+        [BoxGroup(generalPropertiesTab), SerializeField, OnValueChanged(nameof(Refresh))] bool flatShading;
 
         [Space(10)]
         [BoxGroup(_2DPreviewPropertiesTab), SerializeField, ReadOnly, NaughtyAttributes.ShowAssetPreview(10000, 10000), ShowIf(nameof(IsDrawModeForTexture2D))] Texture2D noiseTexture = null;
-        [BoxGroup(_2DPreviewPropertiesTab), SerializeField, ShowIf(nameof(isDrawModeForColour))] TerrainType[] regions;
+        [BoxGroup(_2DPreviewPropertiesTab), SerializeField] TerrainType[] regions;
 
-        [Space(10)]
-        public const int mapChunkSize = 241;
+        public int MapChunkSize => flatShading ? 95 : 239;
+
         [BoxGroup(_3DPreviewPropertiesTab), SerializeField, OnValueChanged(nameof(Refresh)), ShowIf(nameof(IsDrawModeForMesh)), Range(0, 6)] int levelOfDetailEditorPreview;
         [BoxGroup(_3DPreviewPropertiesTab), SerializeField, OnValueChanged(nameof(Refresh)), ShowIf(nameof(IsDrawModeForMesh))] float meshHeightMultiplier;
         [BoxGroup(_3DPreviewPropertiesTab), SerializeField, OnValueChanged(nameof(Refresh)), ShowIf(nameof(IsDrawModeForMesh))] AnimationCurve meshHeightCurve;
+
+        [SerializeField, HideInInspector] float[,] falloffMap;
 
         private bool isDrawModeForColour => drawMode == DrawMode.ColourMap;
         public bool IsDrawModeForTexture2D => drawMode == DrawMode.ColourMap || drawMode == DrawMode.NoiseMap;
@@ -57,6 +62,12 @@ namespace LandmassProceduralGeneration
             {
                 TryGetComponent(out mapDisplay);
             }
+            falloffMap = FallofGenerator.GenerateFallofMap(MapChunkSize);
+        }
+
+        private void Awake()
+        {
+            falloffMap = FallofGenerator.GenerateFallofMap(MapChunkSize);
         }
 
         public void GenerateMap()
@@ -74,7 +85,7 @@ namespace LandmassProceduralGeneration
         {
             ThreadStart threadStart = delegate
             {
-                MapDataThread(center,callback);
+                MapDataThread(center, callback);
             };
             new Thread(threadStart).Start();
         }
@@ -82,7 +93,7 @@ namespace LandmassProceduralGeneration
         void MapDataThread(Vector2 center, Action<MapData> callback)
         {
             var mapData = GenerateMapData(center);
-            lock (mapDataThreadInfoQueue) 
+            lock (mapDataThreadInfoQueue)
             {
                 mapDataThreadInfoQueue.Enqueue(new MapThreadInfo<MapData>(callback, mapData));
             }
@@ -90,7 +101,8 @@ namespace LandmassProceduralGeneration
 
         public void RequestMeshData(MapData mapData, Action<MeshData> callback, int levelOfDetail)
         {
-            ThreadStart threadStart = delegate {
+            ThreadStart threadStart = delegate
+            {
                 MeshDataThread(mapData, callback, levelOfDetail);
             };
             new Thread(threadStart).Start();
@@ -98,7 +110,7 @@ namespace LandmassProceduralGeneration
 
         void MeshDataThread(MapData mapData, Action<MeshData> callback, int levelOfDetail)
         {
-            var meshData = MeshGenerator.GenerateTerrainMesh(mapData.heightMap, meshHeightMultiplier, meshHeightCurve, levelOfDetail);
+            var meshData = MeshGenerator.GenerateTerrainMesh(mapData.heightMap, meshHeightMultiplier, meshHeightCurve, levelOfDetail, flatShading);
             lock (meshDataThreadInfoQueue)
             {
                 meshDataThreadInfoQueue.Enqueue(new MapThreadInfo<MeshData>(callback, meshData));
@@ -130,7 +142,7 @@ namespace LandmassProceduralGeneration
 
         private MapData GenerateMapData(Vector2 center)
         {
-            var noiseMap = Noise.GenerateNoiseMap(mapChunkSize, mapChunkSize, noiseScale, seed, octaves, persistance, lacunarity, center + offset);
+            var noiseMap = Noise.GenerateNoiseMap(MapChunkSize + 2, MapChunkSize + 2, seed, noiseScale, octaves, persistance, lacunarity, center + offset, normalizeMode);
             var colorMap = GenerateColourMap(noiseMap);
             return new MapData(noiseMap, colorMap);
         }
@@ -139,14 +151,15 @@ namespace LandmassProceduralGeneration
         {
             if (drawMode == DrawMode.Mesh)
             {
-                mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(data.heightMap, meshHeightMultiplier, meshHeightCurve, levelOfDetailEditorPreview), TextureGenerator.TextureFromColourMap(GenerateColourMap(data.heightMap), mapChunkSize, mapChunkSize));
+                mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(data.heightMap, meshHeightMultiplier, meshHeightCurve, levelOfDetailEditorPreview, flatShading), TextureGenerator.TextureFromColourMap(GenerateColourMap(data.heightMap), MapChunkSize, MapChunkSize));
             }
             else
             {
                 noiseTexture = drawMode switch
                 {
                     DrawMode.NoiseMap => TextureGenerator.TextureFromHeightMap(data.heightMap),
-                    DrawMode.ColourMap => TextureGenerator.TextureFromColourMap(data.colorMap, mapChunkSize, mapChunkSize),
+                    DrawMode.ColourMap => TextureGenerator.TextureFromColourMap(data.colorMap, MapChunkSize, MapChunkSize),
+                    DrawMode.FallOffMap => TextureGenerator.TextureFromHeightMap(FallofGenerator.GenerateFallofMap(MapChunkSize)),
                     _ => null
                 };
                 mapDisplay.DrawTexture(noiseTexture);
@@ -179,22 +192,26 @@ namespace LandmassProceduralGeneration
 
         private Color32[] GenerateColourMap(float[,] heightMap)
         {
-            //faster solution for generating texture
-            int mapWidth = heightMap.GetLength(0);
-            int mapHeight = heightMap.GetLength(1);
+            Color32[] colourMap = new Color32[MapChunkSize * MapChunkSize];
 
-            Color32[] colourMap = new Color32[mapWidth * mapHeight];
-
-            for (int y = 0; y < mapHeight; y++)
+            for (int y = 0; y < MapChunkSize; y++)
             {
-                for (int x = 0; x < mapWidth; x++)
+                for (int x = 0; x < MapChunkSize; x++)
                 {
+                    if (applyFalloffMap)
+                    {
+                        heightMap[x, y] = Mathf.Clamp01(heightMap[x, y] - falloffMap[x, y]);
+                    }
+
                     float height = heightMap[x, y];
                     for (int i = 0; i < regions.Length; i++)
                     {
-                        if (height <= regions[i].Height)
+                        if (height >= regions[i].Height)
                         {
-                            colourMap[y * mapWidth + x] = regions[i].Colour;
+                            colourMap[y * MapChunkSize + x] = regions[i].Colour;
+                        }
+                        else
+                        {
                             break;
                         }
                     }
