@@ -1,19 +1,13 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using TreeEditor;
-using Unity.VisualScripting;
-using UnityEngine;
+﻿using UnityEngine;
 
-public class ProceduralPyramidRenderer : MonoBehaviour
+public class TerrainRenderer : MonoBehaviour
 {
+    [SerializeField] Vector3 terrainDimentions;
     [SerializeField] Mesh sourceMesh = default;
-    [SerializeField] ComputeShader pyramidComputeShader = default;
+    
+    [SerializeField] ComputeShader generateTerrainComputeShader = default;
     [SerializeField] ComputeShader triToVertComputeShader = default; //for adjustement in triangle count
     [SerializeField] Material material = default;
-    [SerializeField] float height = 1f;
-    [SerializeField] float animFrequency = 1f;
 
     //the structure to send to the compute shader
     //this layout kind asures that the data is lait out squentialy
@@ -37,7 +31,7 @@ public class ProceduralPyramidRenderer : MonoBehaviour
     private ComputeBuffer argsBuffer;
 
     //the id of the kernel in the tri to vert count compute shader
-    private int idPyramidKernel;
+    private int idDataGenerationKernel;
     private int idTriToVertKernel;
     private int dispatchSize;
     private Bounds localBounds;
@@ -89,14 +83,14 @@ public class ProceduralPyramidRenderer : MonoBehaviour
         argsBuffer.SetData(new int[] { 0, 1, 0, 0 });
 
         //cache the kernel ids we will be dispatching
-        idPyramidKernel = pyramidComputeShader.FindKernel("Main");
+        idDataGenerationKernel = generateTerrainComputeShader.FindKernel("Main");
         idTriToVertKernel = triToVertComputeShader.FindKernel("Main");
 
         // set data on the shaders
-        pyramidComputeShader.SetBuffer(idPyramidKernel, "_SourceVertices", sourceVertBuffer);
-        pyramidComputeShader.SetBuffer(idPyramidKernel, "_SourceTriangles", sourceTriBuffer);
-        pyramidComputeShader.SetBuffer(idPyramidKernel, "_DrawTriangles", drawBuffer);
-        pyramidComputeShader.SetInt("_numSourceTriangles", numTriangles);
+        generateTerrainComputeShader.SetBuffer(idDataGenerationKernel, "_SourceVertices", sourceVertBuffer);
+        generateTerrainComputeShader.SetBuffer(idDataGenerationKernel, "_SourceTriangles", sourceTriBuffer);
+        generateTerrainComputeShader.SetBuffer(idDataGenerationKernel, "_DrawTriangles", drawBuffer);
+        generateTerrainComputeShader.SetInt("_numSourceTriangles", numTriangles);
 
         triToVertComputeShader.SetBuffer(idTriToVertKernel, "_IndirectArgsBuffer", argsBuffer);
 
@@ -104,11 +98,15 @@ public class ProceduralPyramidRenderer : MonoBehaviour
 
         // calculate the number of threads to use . get the thread size from th kernel
         // then divide the number of triangles by that size
-        pyramidComputeShader.GetKernelThreadGroupSizes(idPyramidKernel, out uint threadGroupSize, out _, out _);
+        generateTerrainComputeShader.GetKernelThreadGroupSizes(idDataGenerationKernel, out uint threadGroupSize, out _, out _);
         dispatchSize = Mathf.CeilToInt((float)numTriangles / threadGroupSize); // used ceil to make sure we will not ommit any triangles
 
         localBounds = sourceMesh.bounds;
-        localBounds.Expand(height);
+    }
+
+    private void LateUpdate()
+    {
+        DrawTerrain();
     }
 
     private void OnDisable()
@@ -123,17 +121,15 @@ public class ProceduralPyramidRenderer : MonoBehaviour
         initialized = false;
     }
 
-    private void LateUpdate()
+    private void DrawTerrain()
     {
-        //clear th draw buffer of last frame's data
         drawBuffer.SetCounterValue(0);
 
         //update the shader with frame specific data
-        pyramidComputeShader.SetMatrix("_localToWorld", transform.localToWorldMatrix);
-        pyramidComputeShader.SetFloat("_pyramidHeight", height * Mathf.Sin(animFrequency * Time.timeSinceLevelLoad));
+        generateTerrainComputeShader.SetMatrix("_localToWorld", transform.localToWorldMatrix);
 
         //dispatch the pyramid shader . it will run on the gpu
-        pyramidComputeShader.Dispatch(idPyramidKernel, dispatchSize, 1, 1);
+        generateTerrainComputeShader.Dispatch(idDataGenerationKernel, dispatchSize, 1, 1);
 
         //copy the count (stack size) of the draw buffer to the args buffer,at the byte position zero
         // this sets vertex  count for our draw procedural indirect call

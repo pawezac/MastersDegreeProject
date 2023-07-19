@@ -1,0 +1,40 @@
+#pragma kernel Noise
+
+#include "Includes\FastNoiseLite.hlsl"
+#include "Includes\MetricsCompute.hlsl"
+
+RWStructuredBuffer<float> _Weights;
+
+//The amplitude determines how high our terrain will reach, high amplitude means high mountains.
+
+//Frequency tells us where to sample noise, when we have a high frequency, we will sample the noise 
+//further away from eachother. This can give us quite chaotic noise as the sampling will be less coherent.
+
+//Octaves gives us details, when the noise is generated for a point, we will essentially regenerate it but at
+//a smaller sample size and this for the amount of octaves.
+
+//Finally, the ground percent just tells us where along the height of the chunk we want to be above ground.
+
+float _NoiseScale;
+float _Amplitude;
+float _Frequency;
+int _Octaves;
+float _GroundPercent;
+int _GroundLevel;
+
+[numthreads(numOfThreads,numOfThreads,numOfThreads)]
+void Noise(uint3 id : SV_DispatchThreadID)
+{
+    //I opted to use simplex noise with the ridged fractal type. The ridgid noise gives the noise a bit more of a natural feeling.
+
+    fnl_state noise = fnlCreateState();
+    noise.noise_type = FNL_NOISE_OPENSIMPLEX2;
+    noise.fractal_type = FNL_FRACTAL_RIDGED;
+    noise.frequency = _Frequency;
+    noise.octaves = _Octaves;
+
+    float3 pos = (id * _NoiseScale) / (_ChunkSize - 1) * _Scale;
+    float ground = -pos.y + (_GroundPercent * _GroundLevel);
+    float n = ground + fnlGetNoise3D(noise, pos.x, pos.y, pos.z) * _Amplitude;
+    _Weights[indexFromCoord(id.x, id.y, id.z)] = n;
+}
