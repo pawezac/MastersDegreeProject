@@ -64,6 +64,7 @@ public class ChunkTetrahedral : MonoBehaviour
                             tri[j].p = new Vector3[3];
                         }
 
+
                         Vector3[] positions = new Vector3[8]
                         {
                            new Vector3(x, y, z + 1),
@@ -87,7 +88,7 @@ public class ChunkTetrahedral : MonoBehaviour
                             cubeValues[4] = _weights[getIdxFromCoords(x, y + 1, z + 1)];
                             cubeValues[5] = _weights[getIdxFromCoords(x + 1, y + 1, z + 1)];
                             cubeValues[6] = _weights[getIdxFromCoords(x + 1, y + 1, z)];
-                            cubeValues[6] = _weights[getIdxFromCoords(x, y + 1, z)];
+                            cubeValues[7] = _weights[getIdxFromCoords(x, y + 1, z)];
                         }
                         catch (Exception e)
                         {
@@ -141,10 +142,10 @@ public class ChunkTetrahedral : MonoBehaviour
                         int v2 = combinationTable[i, 2];
                         int v3 = combinationTable[i, 3];
 
-                        if (cubeValues[combinationTable[i, 0]] < iso) triindex |= 1;
-                        if (cubeValues[combinationTable[i, 1]] < iso) triindex |= 2;
-                        if (cubeValues[combinationTable[i, 2]] < iso) triindex |= 4;
-                        if (cubeValues[combinationTable[i, 3]] < iso) triindex |= 8;
+                        if (cubeValues[v0] < iso) triindex |= 1;
+                        if (cubeValues[v1] < iso) triindex |= 2;
+                        if (cubeValues[v2] < iso) triindex |= 4;
+                        if (cubeValues[v3] < iso) triindex |= 8;
 
                         switch (triindex)
                         {
@@ -172,8 +173,8 @@ public class ChunkTetrahedral : MonoBehaviour
                                 tri[0].p[2] = VertexInterp(iso, positions[v1], positions[v3], cubeValues[v1], cubeValues[v3]);
                                 ntri++;
                                 tri[1].p[0] = tri[0].p[2];
-                                tri[1].p[1] = VertexInterp(iso, positions[v1], positions[v2], cubeValues[v1], cubeValues[v2]);
-                                tri[1].p[2] = tri[0].p[1];
+                                tri[1].p[2] = VertexInterp(iso, positions[v1], positions[v2], cubeValues[v1], cubeValues[v2]);
+                                tri[1].p[1] = tri[0].p[1];
                                 ntri++;
                                 break;
                             case 0x0B:
@@ -190,8 +191,8 @@ public class ChunkTetrahedral : MonoBehaviour
                                 tri[0].p[2] = VertexInterp(iso, positions[v0], positions[v3], cubeValues[v0], cubeValues[v3]);
                                 ntri++;
                                 tri[1].p[0] = tri[0].p[0];
-                                tri[1].p[1] = VertexInterp(iso, positions[v1], positions[v2], cubeValues[v1], cubeValues[v2]);
-                                tri[1].p[2] = tri[0].p[1];
+                                tri[1].p[2] = VertexInterp(iso, positions[v1], positions[v2], cubeValues[v1], cubeValues[v2]);
+                                tri[1].p[1] = tri[0].p[1];
                                 ntri++;
                                 break;
                             case 0x09:

@@ -8,9 +8,9 @@ namespace MarchingTerrainGeneration
 
         public static int GroundLevel = Scale / 2;
 
-        public const int NumThreads = 8;
+        public const int NumThreads = 4;
 
-        public static int[] LODs = { 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104 };
+        public static int[] LODs = {4,8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104 };
 
         public static int LastLodLvl = LODs.Length - 1;
 
