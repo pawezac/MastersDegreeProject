@@ -1,26 +1,32 @@
 ﻿using NaughtyAttributes;
 using System;
-using System.Drawing;
 using UnityEngine;
 using UnityEngine.UIElements;
-using UnityEngine.Windows.Speech;
 
 namespace MarchingTerrainGeneration
 {
     public class Chunk : MonoBehaviour
     {
-        [SerializeField] ComputeShader generationShader;
+        enum MarchType { MarchCubes, MarchTetrahedra };
+
+        [SerializeField] MarchType marchType;
+        [SerializeField] ComputeShader marchCubesGenerationShader;
+        [SerializeField] ComputeShader marchTetrahedraGenerationShader;
         [SerializeField] NoiseGenerator noiseGenerator;
         [SerializeField] MeshFilter meshFilter;
         [SerializeField] MeshCollider meshCollider;
-        [SerializeField,Range(0, 8), OnValueChanged(nameof(CreateTerrain))] int lodLVL;
+        [SerializeField, Range(0, 8), OnValueChanged(nameof(CreateTerrain))] int lodLVL;
         [SerializeField] private int terrainScale;
 
         Mesh generatedMesh;
 
+        ComputeShader usedShader;
+        int usedKernelID;
+
         int marchingCubesGenerationKernelID;
         int marchingTetrahedrasGenerationKernelID;
         int updateWeightsKernelID;
+
 
         float[] weights;
 
@@ -46,29 +52,55 @@ namespace MarchingTerrainGeneration
 
         private void Awake()
         {
-            marchingCubesGenerationKernelID = generationShader.FindKernel("MarchingCubesGeneration");
-            //marchingTetrahedrasGenerationKernelID = generationShader.FindKernel("MarchingTetrahedrasGeneration");
-            updateWeightsKernelID = generationShader.FindKernel("UpdateWeights");
-
-            GridMetrics.Scale = terrainScale;
             noiseGenerator.onValuesChanged += CreateTerrainOnNoiseChanged;
+        }
+
+        [Button]
+        private void Setup()
+        {
+            marchingCubesGenerationKernelID = marchCubesGenerationShader.FindKernel("MarchingCubesGeneration");
+            marchingTetrahedrasGenerationKernelID = marchTetrahedraGenerationShader.FindKernel("MarchingTetrahedrasGeneration");
+
+            usedShader = marchType == MarchType.MarchCubes ? marchCubesGenerationShader : marchTetrahedraGenerationShader;
+            usedKernelID = marchType == MarchType.MarchCubes ? marchingCubesGenerationKernelID : marchingTetrahedrasGenerationKernelID;
+
+            updateWeightsKernelID = usedShader.FindKernel("UpdateWeights");
         }
 
         private void Start()
         {
-            CreateTerrain();
+            weights = noiseGenerator.GetNoise(GridMetrics.LastLodLvl);
+        }
+
+        [Button]
+        public void Test()
+        {
+            int[] scales = new int[] { 64, 128, 256 , 512, 1024 , 2048, 4096 };
+
+            marchType = MarchType.MarchCubes;
+            Setup();
+            for (int i = 0; i < scales.Length; i++)
+            {
+                GridMetrics.Scale = scales[i];
+                CreateTerrain();
+            }
+
+            marchType = MarchType.MarchTetrahedra;
+            Setup();
+
+            for (int i = 0; i < scales.Length; i++)
+            {
+                GridMetrics.Scale = scales[i];
+                CreateTerrain();
+            }
         }
 
         void CreateTerrainOnNoiseChanged() => CreateTerrain(true);
 
+        [Button]
         private void CreateTerrain(bool regenerateWeights = false)
         {
             CreateBuffers();
-            if (weights == null || regenerateWeights)
-            {
-                weights = noiseGenerator.GetNoise(GridMetrics.LastLodLvl);
-            }
-            //weights = noiseGenerator.GetNoise(lodLVL);
             generatedMesh = new Mesh();
             UpdateMesh();
             ReleaseBuffers();
@@ -79,6 +111,12 @@ namespace MarchingTerrainGeneration
             Mesh mesh = CreateMesh();
             meshFilter.sharedMesh = mesh;
             meshCollider.sharedMesh = mesh;
+
+            TimeSpan elapsed = generateStopWatch.Elapsed;
+            Debug.LogError($"{marchType}, " +
+                $"scale : {GridMetrics.Scale} , " +
+                $"mesh vert count, {generatedMesh.vertexCount}" +
+                $"generation time : {elapsed.TotalMilliseconds} ms");
         }
 
         public void EditWeights(Vector3 hitPosition, float brushSize, bool add)
@@ -86,15 +124,15 @@ namespace MarchingTerrainGeneration
             CreateBuffers();
 
             weightsBuffer.SetData(weights);
-            generationShader.SetBuffer(updateWeightsKernelID, "_Weights", weightsBuffer);
+            usedShader.SetBuffer(updateWeightsKernelID, "_Weights", weightsBuffer);
 
-            generationShader.SetInt("_ChunkSize", GridMetrics.PointsPerChunk(GridMetrics.LastLodLvl));
-            generationShader.SetVector("_HitPosition", hitPosition);
-            generationShader.SetFloat("_BrushSize", brushSize);
-            generationShader.SetFloat("_TerraformStrength", add ? 1f : -1f);
-            generationShader.SetInt("_Scale", GridMetrics.Scale);
+            usedShader.SetInt("_ChunkSize", GridMetrics.PointsPerChunk(GridMetrics.LastLodLvl));
+            usedShader.SetVector("_HitPosition", hitPosition);
+            usedShader.SetFloat("_BrushSize", brushSize);
+            usedShader.SetFloat("_TerraformStrength", add ? 1f : -1f);
+            usedShader.SetInt("_Scale", GridMetrics.Scale);
 
-            generationShader.Dispatch(updateWeightsKernelID, GridMetrics.ThreadGroups(GridMetrics.LastLodLvl), GridMetrics.ThreadGroups(GridMetrics.LastLodLvl), GridMetrics.ThreadGroups(GridMetrics.LastLodLvl));
+            usedShader.Dispatch(updateWeightsKernelID, GridMetrics.ThreadGroups(GridMetrics.LastLodLvl), GridMetrics.ThreadGroups(GridMetrics.LastLodLvl), GridMetrics.ThreadGroups(GridMetrics.LastLodLvl));
 
             weightsBuffer.GetData(weights);
 
@@ -102,28 +140,34 @@ namespace MarchingTerrainGeneration
             ReleaseBuffers();
         }
 
+        System.Diagnostics.Stopwatch generateStopWatch = new System.Diagnostics.Stopwatch();
+
         Mesh CreateMesh()
         {
-            generationShader.SetBuffer(marchingCubesGenerationKernelID, "_Triangles", trianglesBuffer);
-            generationShader.SetBuffer(marchingCubesGenerationKernelID, "_Weights", weightsBuffer);
+            generateStopWatch.Reset();
+            generateStopWatch.Start();
 
-            generationShader.SetInt("_ChunkSize", GridMetrics.PointsPerChunk(GridMetrics.LastLodLvl));
-            generationShader.SetFloat("_IsoLevel", .5f);
-            generationShader.SetInt("_Scale", GridMetrics.Scale);
-            generationShader.SetInt("_LODSize", GridMetrics.PointsPerChunk(lodLVL));
+            usedShader.SetBuffer(usedKernelID, "_Triangles", trianglesBuffer);
+            usedShader.SetBuffer(usedKernelID, "_Weights", weightsBuffer);
+
+            usedShader.SetInt("_ChunkSize", GridMetrics.PointsPerChunk(GridMetrics.LastLodLvl));
+            usedShader.SetFloat("_IsoLevel", .5f);
+            usedShader.SetInt("_Scale", GridMetrics.Scale);
+            usedShader.SetInt("_LODSize", GridMetrics.PointsPerChunk(lodLVL));
 
             float lodScaleFactor = ((float)GridMetrics.PointsPerChunk(GridMetrics.LastLodLvl) + 1) / (float)GridMetrics.PointsPerChunk(lodLVL);
 
-            generationShader.SetFloat("_LodScaleFactor", lodScaleFactor);
+            usedShader.SetFloat("_LodScaleFactor", lodScaleFactor);
 
             weightsBuffer.SetData(weights);
             trianglesBuffer.SetCounterValue(0);
 
-
-            generationShader.Dispatch(marchingCubesGenerationKernelID, GridMetrics.ThreadGroups(lodLVL), GridMetrics.ThreadGroups(lodLVL), GridMetrics.ThreadGroups(lodLVL));
+            usedShader.Dispatch(usedKernelID, GridMetrics.ThreadGroups(lodLVL), GridMetrics.ThreadGroups(lodLVL), GridMetrics.ThreadGroups(lodLVL));
 
             Triangle[] triangles = new Triangle[GetTriangleCount()];
             trianglesBuffer.GetData(triangles);
+
+            generateStopWatch.Stop();
 
             return CreateMeshFromTriangles(triangles);
         }
@@ -155,8 +199,6 @@ namespace MarchingTerrainGeneration
             trianglesCountBuffer.Release();
             weightsBuffer.Release();
         }
-
-
 
         //In case you are wondering why we can’t just use _trianglesBuffer.count (which is an existing function),
         //the .count gives us the max capacity of the buffer, not the actual length of the appendBuffer.
@@ -195,47 +237,5 @@ namespace MarchingTerrainGeneration
             generatedMesh.RecalculateNormals();
             return generatedMesh;
         }
-
-        //private void DrawTerrain()
-        //{
-        //    drawBuffer.SetCounterValue(0);
-
-        //    //update the shader with frame specific data
-        //    generateTerrainComputeShader.SetMatrix("_localToWorld", transform.localToWorldMatrix);
-
-        //    //dispatch the pyramid shader . it will run on the gpu
-        //    generateTerrainComputeShader.Dispatch(idDataGenerationKernel, dispatchSize, 1, 1);
-
-        //    //copy the count (stack size) of the draw buffer to the args buffer,at the byte position zero
-        //    // this sets vertex  count for our draw procedural indirect call
-        //    ComputeBuffer.CopyCount(drawBuffer, argsBuffer, 0);
-
-        //    //this the compute shader outputs triangles, but grpahics shader needs the number of vertices, 
-        //    //we need to multiply the vertex count by three . we'll do this on the gpu with a compute shader
-        //    // so we dont have to transfer data back to the cpu
-        //    triToVertComputeShader.Dispatch(idTriToVertKernel, 1, 1, 1);
-
-        //    //DrawProceduralIndirect queues a draw call up for out generated mesh
-        //    // it will recive a shadow casting pass, like normal
-        //    Graphics.DrawProceduralIndirect(material, TransformBounds(localBounds), MeshTopology.Triangles, argsBuffer, 0, null, null, UnityEngine.Rendering.ShadowCastingMode.On, true, gameObject.layer);
-        //}
-
-        //private Bounds TransformBounds(Bounds localBounds) // transform bounds to world space
-        //{
-        //    var center = transform.TransformPoint(localBounds.center);
-
-        //    // transform the local extents axes
-        //    var extents = localBounds.extents;
-        //    var axisX = transform.TransformVector(extents.x, 0, 0);
-        //    var axisY = transform.TransformVector(0, extents.y, 0);
-        //    var axisZ = transform.TransformVector(0, 0, extents.z);
-
-        //    //sume their absolute val to get the world extents
-        //    extents.x = Mathf.Abs(axisX.x) + Mathf.Abs(axisY.x) + Mathf.Abs(axisZ.x);
-        //    extents.y = Mathf.Abs(axisX.y) + Mathf.Abs(axisY.y) + Mathf.Abs(axisZ.y);
-        //    extents.z = Mathf.Abs(axisX.z) + Mathf.Abs(axisY.z) + Mathf.Abs(axisZ.z);
-
-        //    return new Bounds(center, extents);
-        //}
     }
 }

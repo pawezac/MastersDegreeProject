@@ -15,7 +15,6 @@ struct Triangle
 RWStructuredBuffer<float> _Weights;
 AppendStructuredBuffer<Triangle> _Triangles;
 
-
 float3 _HitPosition;
 float _BrushSize;
 float _TerraformStrength;

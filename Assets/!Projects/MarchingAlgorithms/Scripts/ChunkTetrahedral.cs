@@ -1,12 +1,6 @@
 using MarchingTerrainGeneration;
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using TMPro;
-using Unity.Mathematics;
 using UnityEngine;
-using static UnityEditor.PlayerSettings;
-using static UnityEditor.Progress;
 
 public class ChunkTetrahedral : MonoBehaviour
 {
@@ -47,179 +41,230 @@ public class ChunkTetrahedral : MonoBehaviour
             {
                 for (int z = 0; z < GridMetrics.PointsPerChunk(0); z++)
                 {
+                    if (x >= GridMetrics.PointsPerChunk(0) - 1 || y >= GridMetrics.PointsPerChunk(0) - 1 || z >= GridMetrics.PointsPerChunk(0) - 1)
+                    {
+                        continue;
+                    }
+
                     for (int i = 0; i < 6; i++)
                     {
-                        if (x >= GridMetrics.PointsPerChunk(0) - 1 || y >= GridMetrics.PointsPerChunk(0) - 1 || z >= GridMetrics.PointsPerChunk(0) - 1)
-                        {
-                            continue;
-                        }
 
-                        int ntri = 0;
                         int triindex = 0;
 
-                        Triangle[] tri = new Triangle[2];
-
-                        for (int j = 0; j < tri.Length; j++)
+                        Vertex[] vertecies = new Vertex[8]
                         {
-                            tri[j].p = new Vector3[3];
-                        }
-
-
-                        Vector3[] positions = new Vector3[8]
-                        {
-                           new Vector3(x, y, z + 1),
-                           new Vector3(x + 1, y, z + 1),
-                           new Vector3(x + 1, y, z),
-                           new Vector3(x, y, z),
-                           new Vector3(x, y + 1, z + 1),
-                           new Vector3(x + 1, y + 1, z + 1),
-                           new Vector3(x + 1, y + 1, z),
-                           new Vector3(x, y + 1, z)
+                           new Vertex(x, y, z + 1),
+                           new Vertex(x + 1, y, z + 1),
+                           new Vertex(x + 1, y, z),
+                           new Vertex(x, y, z),
+                           new Vertex(x, y + 1, z + 1),
+                           new Vertex(x + 1, y + 1, z + 1),
+                           new Vertex(x + 1, y + 1, z),
+                           new Vertex(x, y + 1, z)
                         };
 
-                        float[] cubeValues = new float[8];
-
-                        try
-                        {
-                            cubeValues[0] = _weights[getIdxFromCoords(x, y, z + 1)];
-                            cubeValues[1] = _weights[getIdxFromCoords(x + 1, y, z + 1)];
-                            cubeValues[2] = _weights[getIdxFromCoords(x + 1, y, z)];
-                            cubeValues[3] = _weights[getIdxFromCoords(x, y, z)];
-                            cubeValues[4] = _weights[getIdxFromCoords(x, y + 1, z + 1)];
-                            cubeValues[5] = _weights[getIdxFromCoords(x + 1, y + 1, z + 1)];
-                            cubeValues[6] = _weights[getIdxFromCoords(x + 1, y + 1, z)];
-                            cubeValues[7] = _weights[getIdxFromCoords(x, y + 1, z)];
-                        }
-                        catch (Exception e)
-                        {
-                            Debug.LogError(getIdxFromCoords(x, y, z + 1));
-                            Debug.LogError(getIdxFromCoords(x + 1, y, z + 1));
-                            Debug.LogError(getIdxFromCoords(x + 1, y, z));
-                            Debug.LogError(getIdxFromCoords(x, y, z));
-                            Debug.LogError(getIdxFromCoords(x, y + 1, z + 1));
-                            Debug.LogError(getIdxFromCoords(x + 1, y + 1, z + 1));
-                            Debug.LogError(getIdxFromCoords(x + 1, y + 1, z));
-                            Debug.LogError(getIdxFromCoords(x, y + 1, z));
-
-                            if (getIdxFromCoords(x, y, z + 1) >= _weights.Length)
-                            {
-                                Debug.LogError($"value for {x} {y} {z} do not exists");
-                            }
-
-                            if (getIdxFromCoords(x + 1, y, z + 1) >= _weights.Length)
-                            {
-                                Debug.LogError($"value for {x} {y} {z} do not exists");
-                            }
-
-                            if (getIdxFromCoords(x, y, z) >= _weights.Length)
-                            {
-                                Debug.LogError($"value for {x} {y} {z} do not exists");
-                            }
-
-                            if (getIdxFromCoords(x, y + 1, z + 1) >= _weights.Length)
-                            {
-                                Debug.LogError($"value for {x} {y} {z} do not exists");
-                            }
-
-                            if (getIdxFromCoords(x + 1, y + 1, z + 1) >= _weights.Length)
-                            {
-                                Debug.LogError($"value for {x} {y} {z} do not exists");
-                            }
-
-                            if (getIdxFromCoords(x + 1, y + 1, z) >= _weights.Length)
-                            {
-                                Debug.LogError($"value for {x} {y} {z} do not exists");
-                            }
-
-                            if (getIdxFromCoords(x, y + 1, z) >= _weights.Length)
-                            {
-                                Debug.LogError($"value for {x} {y} {z} do not exists");
-                            }
-                        }
+                        vertecies[0].Value = _weights[getIdxFromCoords(x, y, z + 1)];
+                        vertecies[1].Value = _weights[getIdxFromCoords(x + 1, y, z + 1)];
+                        vertecies[2].Value = _weights[getIdxFromCoords(x + 1, y, z)];
+                        vertecies[3].Value = _weights[getIdxFromCoords(x, y, z)];
+                        vertecies[4].Value = _weights[getIdxFromCoords(x, y + 1, z + 1)];
+                        vertecies[5].Value = _weights[getIdxFromCoords(x + 1, y + 1, z + 1)];
+                        vertecies[6].Value = _weights[getIdxFromCoords(x + 1, y + 1, z)];
+                        vertecies[7].Value = _weights[getIdxFromCoords(x, y + 1, z)];
 
                         int v0 = combinationTable[i, 0];
                         int v1 = combinationTable[i, 1];
                         int v2 = combinationTable[i, 2];
                         int v3 = combinationTable[i, 3];
 
-                        if (cubeValues[v0] < iso) triindex |= 1;
-                        if (cubeValues[v1] < iso) triindex |= 2;
-                        if (cubeValues[v2] < iso) triindex |= 4;
-                        if (cubeValues[v3] < iso) triindex |= 8;
+                        if (vertecies[v0].Value < iso) triindex |= 1;
+                        if (vertecies[v1].Value < iso) triindex |= 2;
+                        if (vertecies[v2].Value < iso) triindex |= 4;
+                        if (vertecies[v3].Value < iso) triindex |= 8;
 
                         switch (triindex)
                         {
                             case 0x00:
                             case 0x0F:
                                 break;
-                            case 0x0E:
                             case 0x01:
-                                tri[0].p[0] = VertexInterp(iso, positions[v0], positions[v1], cubeValues[v0], cubeValues[v1]);
-                                tri[0].p[1] = VertexInterp(iso, positions[v0], positions[v2], cubeValues[v0], cubeValues[v2]);
-                                tri[0].p[2] = VertexInterp(iso, positions[v0], positions[v3], cubeValues[v0], cubeValues[v3]);
-                                ntri++;
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v0], vertecies[v1]),
+                                            b: VertexInterp(vertecies[v0], vertecies[v2]),
+                                            c: VertexInterp(vertecies[v0], vertecies[v3])
+                                        )
+                                );
+
+                                break;
+                            case 0x0E:
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v3], vertecies[v0]),
+                                            b: VertexInterp(vertecies[v2], vertecies[v0]),
+                                            c: VertexInterp(vertecies[v1], vertecies[v0])
+                                        )
+                                );
+
+                                break;
+                            case 0x02:
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v2], vertecies[v1]),
+                                            b: VertexInterp(vertecies[v3], vertecies[v1]),
+                                            c: VertexInterp(vertecies[v0], vertecies[v1])
+                                        )
+                                );
+
                                 break;
                             case 0x0D:
-                            case 0x02:
-                                tri[0].p[0] = VertexInterp(iso, positions[v1], positions[v0], cubeValues[v1], cubeValues[v0]);
-                                tri[0].p[1] = VertexInterp(iso, positions[v1], positions[v3], cubeValues[v1], cubeValues[v3]);
-                                tri[0].p[2] = VertexInterp(iso, positions[v1], positions[v2], cubeValues[v1], cubeValues[v2]);
-                                ntri++;
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v1], vertecies[v2]),
+                                            b: VertexInterp(vertecies[v1], vertecies[v3]),
+                                            c: VertexInterp(vertecies[v1], vertecies[v0])
+                                        )
+                                );
+
                                 break;
-                            case 0x0C:
                             case 0x03:
-                                tri[0].p[0] = VertexInterp(iso, positions[v0], positions[v3], cubeValues[v0], cubeValues[v3]);
-                                tri[0].p[1] = VertexInterp(iso, positions[v0], positions[v2], cubeValues[v0], cubeValues[v2]);
-                                tri[0].p[2] = VertexInterp(iso, positions[v1], positions[v3], cubeValues[v1], cubeValues[v3]);
-                                ntri++;
-                                tri[1].p[0] = tri[0].p[2];
-                                tri[1].p[2] = VertexInterp(iso, positions[v1], positions[v2], cubeValues[v1], cubeValues[v2]);
-                                tri[1].p[1] = tri[0].p[1];
-                                ntri++;
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v0], vertecies[v3]),
+                                            b: VertexInterp(vertecies[v0], vertecies[v2]),
+                                            c: VertexInterp(vertecies[v1], vertecies[v3])
+                                        )
+                                );
+
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v1], vertecies[v3]),
+                                            b: VertexInterp(vertecies[v1], vertecies[v2]),
+                                            c: VertexInterp(vertecies[v0], vertecies[v2])
+                                        )
+                                );
+                                break;
+
+                            case 0x0C:
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v3], vertecies[v1]),
+                                            b: VertexInterp(vertecies[v2], vertecies[v0]),
+                                            c: VertexInterp(vertecies[v3], vertecies[v0])
+                                        )
+                                );
+
+                                triangles.Add(
+                                    new Triangle(
+                                            c: VertexInterp(vertecies[v2], vertecies[v0]),
+                                            b: VertexInterp(vertecies[v2], vertecies[v1]),
+                                            a: VertexInterp(vertecies[v3], vertecies[v1])
+                                        )
+                                );
+                                break;
+
+                            case 0x04:
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v2], vertecies[v0]),
+                                            b: VertexInterp(vertecies[v2], vertecies[v1]),
+                                            c: VertexInterp(vertecies[v2], vertecies[v3])
+                                        )
+                                );
                                 break;
                             case 0x0B:
-                            case 0x04:
-                                tri[0].p[0] = VertexInterp(iso, positions[v2], positions[v0], cubeValues[v2], cubeValues[v0]);
-                                tri[0].p[1] = VertexInterp(iso, positions[v2], positions[v1], cubeValues[v2], cubeValues[v1]);
-                                tri[0].p[2] = VertexInterp(iso, positions[v2], positions[v3], cubeValues[v2], cubeValues[v3]);
-                                ntri++;
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v3], vertecies[v2]),
+                                            b: VertexInterp(vertecies[v1], vertecies[v2]),
+                                            c: VertexInterp(vertecies[v0], vertecies[v2])
+                                        )
+                                );
+                                break;
+                            case 0x05:
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v0], vertecies[v1]),
+                                            b: VertexInterp(vertecies[v2], vertecies[v3]),
+                                            c: VertexInterp(vertecies[v0], vertecies[v3])
+                                        )
+                                );
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v0], vertecies[v1]),
+                                            b: VertexInterp(vertecies[v1], vertecies[v2]),
+                                            c: VertexInterp(vertecies[v2], vertecies[v3])
+                                        )
+                                );
                                 break;
                             case 0x0A:
-                            case 0x05:
-                                tri[0].p[0] = VertexInterp(iso, positions[v0], positions[v1], cubeValues[v0], cubeValues[v1]);
-                                tri[0].p[1] = VertexInterp(iso, positions[v2], positions[v3], cubeValues[v2], cubeValues[v3]);
-                                tri[0].p[2] = VertexInterp(iso, positions[v0], positions[v3], cubeValues[v0], cubeValues[v3]);
-                                ntri++;
-                                tri[1].p[0] = tri[0].p[0];
-                                tri[1].p[2] = VertexInterp(iso, positions[v1], positions[v2], cubeValues[v1], cubeValues[v2]);
-                                tri[1].p[1] = tri[0].p[1];
-                                ntri++;
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v0], vertecies[v3]),
+                                            b: VertexInterp(vertecies[v2], vertecies[v3]),
+                                            c: VertexInterp(vertecies[v0], vertecies[v1])
+                                        )
+                                );
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v2], vertecies[v1]),
+                                            b: VertexInterp(vertecies[v3], vertecies[v2]),
+                                            c: VertexInterp(vertecies[v1], vertecies[v0])
+                                        )
+                                );
+                                break;
+                            case 0x06:
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v0], vertecies[v1]),
+                                            b: VertexInterp(vertecies[v1], vertecies[v3]),
+                                            c: VertexInterp(vertecies[v2], vertecies[v3])
+                                        )
+                                );
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v0], vertecies[v1]),
+                                            b: VertexInterp(vertecies[v0], vertecies[v2]),
+                                            c: VertexInterp(vertecies[v2], vertecies[v3])
+                                        )
+                                );
                                 break;
                             case 0x09:
-                            case 0x06:
-                                tri[0].p[0] = VertexInterp(iso, positions[v0], positions[v1], cubeValues[v0], cubeValues[v1]);
-                                tri[0].p[1] = VertexInterp(iso, positions[v1], positions[v3], cubeValues[v1], cubeValues[v3]);
-                                tri[0].p[2] = VertexInterp(iso, positions[v2], positions[v3], cubeValues[v2], cubeValues[v3]);
-                                ntri++;
-                                tri[1].p[0] = tri[0].p[0];
-                                tri[1].p[1] = VertexInterp(iso, positions[v0], positions[v2], cubeValues[v0], cubeValues[v2]);
-                                tri[1].p[2] = tri[0].p[2];
-                                ntri++;
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v2], vertecies[v3]),
+                                            b: VertexInterp(vertecies[v1], vertecies[v3]),
+                                            c: VertexInterp(vertecies[v0], vertecies[v1])
+                                        )
+                                );
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v2], vertecies[v3]),
+                                            b: VertexInterp(vertecies[v0], vertecies[v2]),
+                                            c: VertexInterp(vertecies[v0], vertecies[v1])
+                                        )
+                                );
+                                break;
+                            case 0x08:
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v1], vertecies[v3]),
+                                            b: VertexInterp(vertecies[v2], vertecies[v3]),
+                                            c: VertexInterp(vertecies[v0], vertecies[v3])
+                                        )
+                                );
                                 break;
                             case 0x07:
-                            case 0x08:
-                                tri[0].p[0] = VertexInterp(iso, positions[v3], positions[v0], cubeValues[v3], cubeValues[v0]);
-                                tri[0].p[1] = VertexInterp(iso, positions[v3], positions[v2], cubeValues[v3], cubeValues[v2]);
-                                tri[0].p[2] = VertexInterp(iso, positions[v3], positions[v1], cubeValues[v3], cubeValues[v1]);
-                                ntri++;
+                                triangles.Add(
+                                    new Triangle(
+                                            a: VertexInterp(vertecies[v3], vertecies[v1]),
+                                            b: VertexInterp(vertecies[v3], vertecies[v2]),
+                                            c: VertexInterp(vertecies[v3], vertecies[v0])
+                                        )
+                                );
                                 break;
                         }
 
-
-                        for (int j = 0; j < ntri; j++)
-                        {
-                            triangles.Add(tri[j]);
-                        }
                     }
                 }
             }
@@ -228,19 +273,23 @@ public class ChunkTetrahedral : MonoBehaviour
         MeshFilter.sharedMesh = CreateMeshFromTriangles(triangles.ToArray());
     }
 
-
-    Vector3 VertexInterp(float isolevel, Vector3 p1, Vector3 p2, float valp1, float valp2)
+    Vector3 VertexInterp(Vertex v1, Vertex v2)
     {
         float mu;
         Vector3 p;
 
-        if (Mathf.Abs(isolevel - valp1) < 0.00001)
+        Vector3 p1 = v1.vector;
+        Vector3 p2 = v2.vector;
+        float valp1 = v1.Value;
+        float valp2 = v2.Value;
+
+        if (Mathf.Abs(iso - valp1) < 0.00001)
             return (p1);
-        if (Mathf.Abs(isolevel - valp2) < 0.00001)
+        if (Mathf.Abs(iso - valp2) < 0.00001)
             return (p2);
         if (Mathf.Abs(valp1 - valp2) < 0.00001)
             return (p1);
-        mu = (isolevel - valp1) / (valp2 - valp1);
+        mu = (iso - valp1) / (valp2 - valp1);
         p.x = p1.x + mu * (p2.x - p1.x);
         p.y = p1.y + mu * (p2.y - p1.y);
         p.z = p1.z + mu * (p2.z - p1.z);
@@ -257,9 +306,9 @@ public class ChunkTetrahedral : MonoBehaviour
         {
             int startIndex = i * 3;
 
-            verts[startIndex] = triangles[i].p[0];
-            verts[startIndex + 1] = triangles[i].p[1];
-            verts[startIndex + 2] = triangles[i].p[2];
+            verts[startIndex] = triangles[i].p[0].vector;
+            verts[startIndex + 1] = triangles[i].p[1].vector;
+            verts[startIndex + 2] = triangles[i].p[2].vector;
 
             tris[startIndex] = startIndex;
             tris[startIndex + 1] = startIndex + 1;
@@ -273,9 +322,57 @@ public class ChunkTetrahedral : MonoBehaviour
         return mesh;
     }
 
-    public struct Triangle
+    public class Triangle
     {
-        public Vector3[] p;
+        public Vertex[] p = new Vertex[3];
+
+        public Triangle(Vector3 a, Vector3 b, Vector3 c)
+        {
+            p[0] = new Vertex(a);
+            p[1] = new Vertex(b);
+            p[2] = new Vertex(c);
+
+            if (normal.y < 0)
+            {
+                Rearange();
+            }
+        }
+
+        Vector3 normal => Vector3.Cross(p[1].vector - p[0].vector, p[2].vector - p[0].vector).normalized ;
+
+        public void Rearange()
+        {
+            Vector3 a, c;
+
+            a = p[0].vector;
+            c = p[2].vector;
+
+            p[0] = new Vertex(c);
+            p[2] = new Vertex(a);
+        }
+    }
+
+    public struct Vertex
+    {
+        public float a, b, c;
+        public float Value;
+        public Vector3 vector => new Vector3(a, b, c);
+
+        public Vertex(float a, float b, float c)
+        {
+            this.a = a;
+            this.b = b;
+            this.c = c;
+            Value = 0;
+        }
+
+        public Vertex(Vector3 vector)
+        {
+            a = vector.x;
+            b = vector.y;
+            c = vector.z;
+            Value = 0;
+        }
     }
 
     private void OnDrawGizmos()

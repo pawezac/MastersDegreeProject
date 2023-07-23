@@ -1,0 +1,268 @@
+#pragma kernel MarchingTetrahedrasGeneration
+#pragma kernel UpdateWeights
+
+#include "Includes\MarchingTetrahedrasTable.hlsl"
+#include "Includes\MetricsCompute.hlsl"
+
+float3 _HitPosition;
+float _BrushSize;
+float _TerraformStrength;
+float _LodScaleFactor;
+float _IsoLevel;
+int _LODSize;
+
+struct Triangle
+{
+	float3 a;
+	float3 b;
+	float3 c;
+};
+
+RWStructuredBuffer<float> _Weights;
+AppendStructuredBuffer<Triangle> _Triangles;
+
+struct Vertex
+{
+    float3 pos;
+    float Value;
+};
+
+Vertex GetNewVertex(Vertex vec)
+{
+    Vertex v = (Vertex)0;
+    v.pos = vec.pos;
+    v.Value = vec.Value;
+    return v;
+}
+
+Vertex GetNewVertex(float a, float b, float c)
+{
+    Vertex v = (Vertex)0;
+    v.pos = float3(a,b,c);
+    v.Value = 0;
+    return v;
+}
+
+Vertex GetNewVertex(float3 pos)
+{
+    Vertex v = (Vertex)0;
+    v.pos = pos;
+    v.Value = 0;
+    return v;
+}
+
+Vertex GetNewVertex(float3 pos, float value)
+{
+    Vertex vert = (Vertex)0;
+    vert.pos = pos;
+    vert.Value = value;
+    return vert;
+}
+
+struct TriangleAdv
+{
+    Vertex p[3];
+
+    float3 Normal()
+    {
+        return normalize(cross(p[1].pos - p[0].pos, p[2].pos - p[0].pos));
+    }
+
+    void Rearange()
+    {
+        float3 a = p[0].pos;
+        float3 c = p[2].pos;
+
+        p[0] = GetNewVertex(c);
+        p[2] = GetNewVertex(a);
+    }
+};
+
+TriangleAdv GetNewTriangleAdv(Vertex a, Vertex b, Vertex c)
+{
+    TriangleAdv tri = (TriangleAdv)0;
+
+    tri.p[0] = GetNewVertex(a);
+    tri.p[1] = GetNewVertex(b);
+    tri.p[2] = GetNewVertex(c);
+
+    if (tri.Normal().y < 0)
+    {
+        tri.Rearange();
+    }
+
+    return tri;
+}
+
+Triangle CreateTriangle(float3 v1,float3 v2,float3 v3)
+{
+    TriangleAdv triAdv = GetNewTriangleAdv(GetNewVertex(v1),GetNewVertex(v2),GetNewVertex(v3));
+    Triangle tri = (Triangle)0;
+    tri.a = triAdv.p[0].pos;
+    tri.b = triAdv.p[1].pos;
+    tri.c = triAdv.p[2].pos;
+    return tri;
+}
+
+float3 interp(Vertex v1, Vertex v2)
+{
+    float mu;
+    float3 p;
+
+    float3 p1 = v1.pos;
+    float3 p2 = v2.pos;
+    float valp1 = v1.Value;
+    float valp2 = v2.Value;
+
+    if (abs(_IsoLevel - valp1) < 0.00001)
+        return p1;
+    if (abs(_IsoLevel - valp2) < 0.00001)
+        return p2;
+    if (abs(valp1 - valp2) < 0.00001)
+        return p1;
+    mu = (_IsoLevel - valp1) / (valp2 - valp1);
+    p.x = p1.x + mu * (p2.x - p1.x);
+    p.y = p1.y + mu * (p2.y - p1.y);
+    p.z = p1.z + mu * (p2.z - p1.z);
+
+    return p;
+}
+
+[numthreads(numOfThreads, numOfThreads, numOfThreads)]
+void MarchingTetrahedrasGeneration(uint3 id : SV_DispatchThreadID)
+{
+	// cause we dont want to go outside of bounds
+	if (id.x >= _LODSize - 1 || id.y >= _LODSize - 1 || id.z >= _LODSize - 1)
+    {
+        return;
+    }
+
+    float3 samplePos = id * _LodScaleFactor;
+    float unit = 1 * _LodScaleFactor;
+
+    Vertex verts[8] = 
+    {
+        GetNewVertex(float3(samplePos.x, samplePos.y, samplePos.z + unit),               _Weights[indexFromCoord(samplePos.x, samplePos.y, samplePos.z + unit)]),
+        GetNewVertex(float3(samplePos.x + unit, samplePos.y, samplePos.z + unit),        _Weights[indexFromCoord(samplePos.x + unit, samplePos.y, samplePos.z + unit)]),
+        GetNewVertex(float3(samplePos.x + unit, samplePos.y, samplePos.z),               _Weights[indexFromCoord(samplePos.x + unit, samplePos.y, samplePos.z)]),
+        GetNewVertex(float3(samplePos.x, samplePos.y, samplePos.z),                      _Weights[indexFromCoord(samplePos.x, samplePos.y, samplePos.z)]),
+        GetNewVertex(float3(samplePos.x, samplePos.y + unit, samplePos.z + unit),        _Weights[indexFromCoord(samplePos.x, samplePos.y + unit, samplePos.z + unit)]),
+        GetNewVertex(float3(samplePos.x + unit, samplePos.y + unit, samplePos.z + unit), _Weights[indexFromCoord(samplePos.x + unit, samplePos.y + unit, samplePos.z + unit)]),
+        GetNewVertex(float3(samplePos.x + unit, samplePos.y + unit, samplePos.z),        _Weights[indexFromCoord(samplePos.x + unit, samplePos.y + unit, samplePos.z)]),
+        GetNewVertex(float3(samplePos.x, samplePos.y + unit, samplePos.z),               _Weights[indexFromCoord(samplePos.x, samplePos.y + unit, samplePos.z)])
+    };
+
+    for (int i = 0; i < 6; i++)
+    {
+        int triindex = 0;
+        
+        int v0 = combinationTable[i][0];
+        int v1 = combinationTable[i][1];
+        int v2 = combinationTable[i][2];
+        int v3 = combinationTable[i][3];
+
+        if (verts[v0].Value < _IsoLevel) triindex |= 1;
+        if (verts[v1].Value < _IsoLevel) triindex |= 2;
+        if (verts[v2].Value < _IsoLevel) triindex |= 4;
+        if (verts[v3].Value < _IsoLevel) triindex |= 8;
+
+        Triangle tri = (Triangle)0;
+
+        switch (triindex)
+        {
+            case 0x00:
+            case 0x0F:
+                break;
+            case 0x01:
+                tri = CreateTriangle( interp(verts[v0], verts[v1]), interp(verts[v0], verts[v2]),interp(verts[v0], verts[v3]));
+                _Triangles.Append(tri);
+                break;
+            case 0x0E:
+                tri = CreateTriangle(interp(verts[v3], verts[v0]),interp(verts[v2], verts[v0]),interp(verts[v1], verts[v0]));
+                _Triangles.Append(tri);
+                break;
+            case 0x02:
+                tri = CreateTriangle(interp(verts[v2], verts[v1]), interp(verts[v3], verts[v1]), interp(verts[v0], verts[v1]));
+                _Triangles.Append(tri);
+                break;
+            case 0x0D:
+                tri = CreateTriangle(interp(verts[v1], verts[v2]), interp(verts[v1], verts[v3]), interp(verts[v1], verts[v0]));
+                _Triangles.Append(tri);
+                break;
+            case 0x03:
+                tri = CreateTriangle(interp(verts[v0], verts[v3]), interp(verts[v0], verts[v2]), interp(verts[v1], verts[v3]));
+                _Triangles.Append(tri);
+
+                tri = CreateTriangle(interp(verts[v1], verts[v3]), interp(verts[v1], verts[v2]), interp(verts[v0], verts[v2]));
+                _Triangles.Append(tri);
+                break;
+            case 0x0C:
+                tri = CreateTriangle(interp(verts[v3], verts[v1]), interp(verts[v2], verts[v0]), interp(verts[v3], verts[v0]));
+                _Triangles.Append(tri);
+                    
+                tri = CreateTriangle(interp(verts[v2], verts[v0]), interp(verts[v2], verts[v1]), interp(verts[v3], verts[v1]));
+                _Triangles.Append(tri);
+                break;
+            case 0x04:
+                tri = CreateTriangle(interp(verts[v2], verts[v0]), interp(verts[v2], verts[v1]), interp(verts[v2], verts[v3]));
+                _Triangles.Append(tri);
+                break;
+            case 0x0B:
+                tri = CreateTriangle(interp(verts[v3], verts[v2]), interp(verts[v1], verts[v2]), interp(verts[v0], verts[v2]));
+                _Triangles.Append(tri);
+                break;
+            case 0x05:
+                tri = CreateTriangle(interp(verts[v0], verts[v1]), interp(verts[v2], verts[v3]), interp(verts[v0], verts[v3]));
+                _Triangles.Append(tri);
+                    
+                tri = CreateTriangle(interp(verts[v0], verts[v1]), interp(verts[v1], verts[v2]), interp(verts[v2], verts[v3]));
+                _Triangles.Append(tri);
+                break;
+            case 0x0A:
+                tri = CreateTriangle(interp(verts[v0], verts[v3]), interp(verts[v2], verts[v3]), interp(verts[v0], verts[v1]));
+                _Triangles.Append(tri);
+
+                tri = CreateTriangle(interp(verts[v2], verts[v1]), interp(verts[v3], verts[v2]), interp(verts[v1], verts[v0]));
+                _Triangles.Append(tri);
+                break;
+            case 0x06:
+                tri = CreateTriangle(interp(verts[v0], verts[v1]), interp(verts[v1], verts[v3]), interp(verts[v2], verts[v3]));
+                _Triangles.Append(tri);
+
+                tri = CreateTriangle(interp(verts[v0], verts[v1]), interp(verts[v0], verts[v2]), interp(verts[v2], verts[v3]));
+                _Triangles.Append(tri);
+                break;
+            case 0x09:
+                tri = CreateTriangle(interp(verts[v2], verts[v3]), interp(verts[v1], verts[v3]), interp(verts[v0], verts[v1]));
+                _Triangles.Append(tri);
+                    
+                tri = CreateTriangle(interp(verts[v2], verts[v3]), interp(verts[v0], verts[v2]), interp(verts[v0], verts[v1]));
+                _Triangles.Append(tri);
+                break;
+            case 0x08:
+                tri = CreateTriangle(interp(verts[v1], verts[v3]), interp(verts[v2], verts[v3]), interp(verts[v0], verts[v3]));
+                _Triangles.Append(tri);
+                break;
+            case 0x07:
+                tri = CreateTriangle(interp(verts[v3], verts[v1]), interp(verts[v3], verts[v2]), interp(verts[v3], verts[v0]));
+                _Triangles.Append(tri);
+                break;
+        }
+    }
+}
+
+[numthreads(numOfThreads, numOfThreads, numOfThreads)]
+void UpdateWeights( uint3 id : SV_DispatchThreadID ) 
+{
+    //check if the id is actually within the valid chunk size range.
+    if ( id.x >= _ChunkSize - 1 || id.y >= _ChunkSize - 1 || id.z >= _ChunkSize - 1 )
+    {
+        return;
+    }
+
+    if (distance((float3(id) / (_ChunkSize - 1) * _Scale), _HitPosition) <= _BrushSize)
+    {
+        _Weights[indexFromCoord(id.x, id.y, id.z)] += _TerraformStrength;
+    }
+}
+
