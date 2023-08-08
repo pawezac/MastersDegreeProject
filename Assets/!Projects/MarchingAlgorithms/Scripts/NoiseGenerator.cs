@@ -1,6 +1,5 @@
 ﻿using NaughtyAttributes;
 using System;
-using Unity.VisualScripting;
 using UnityEngine;
 
 namespace MarchingTerrainGeneration
@@ -18,6 +17,8 @@ namespace MarchingTerrainGeneration
         ComputeBuffer weightsBuffer;
         float noiseScale = 1f;
 
+        float[] noiseValues;
+
         void OnNoiseValuesChanged()
         {
             onValuesChanged?.Invoke();
@@ -29,8 +30,8 @@ namespace MarchingTerrainGeneration
         {
             CreateBuffers(lodLvl);
 
-            float[] noiseValues =
-                new float[GridMetrics.PointsPerChunk(lodLvl) * GridMetrics.PointsPerChunk(lodLvl) * GridMetrics.PointsPerChunk(lodLvl)];
+            int tmp = GridMetrics.PointsPerChunk(lodLvl);
+            noiseValues = new float[tmp * tmp * tmp];
 
             noiseCompute.SetBuffer(0, "_Weights", weightsBuffer);
 
@@ -43,9 +44,9 @@ namespace MarchingTerrainGeneration
             noiseCompute.SetInt("_Scale", GridMetrics.Scale);
             noiseCompute.SetInt("_GroundLevel", GridMetrics.GroundLevel);
 
-            noiseCompute.Dispatch(
-                     0, GridMetrics.ThreadGroups(lodLvl), GridMetrics.ThreadGroups(lodLvl), GridMetrics.ThreadGroups(lodLvl)
-                 );
+            int threadGroup = GridMetrics.ThreadGroups(lodLvl);
+
+            noiseCompute.Dispatch(0, threadGroup, threadGroup, threadGroup);
 
             weightsBuffer.GetData(noiseValues);
 
@@ -55,15 +56,13 @@ namespace MarchingTerrainGeneration
 
         void CreateBuffers(int lodLvl)
         {
-            weightsBuffer = new ComputeBuffer(
-                GridMetrics.PointsPerChunk(lodLvl) * GridMetrics.PointsPerChunk(lodLvl) * GridMetrics.PointsPerChunk(lodLvl), sizeof(float)
-            );
+            int tmp = GridMetrics.PointsPerChunk(lodLvl);
+            weightsBuffer = new ComputeBuffer(tmp * tmp * tmp, sizeof(float));
         }
 
         void ReleaseBuffers()
         {
             weightsBuffer.Release();
         }
-
     }
 }

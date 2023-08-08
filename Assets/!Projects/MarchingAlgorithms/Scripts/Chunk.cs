@@ -237,5 +237,27 @@ namespace MarchingTerrainGeneration
             generatedMesh.RecalculateNormals();
             return generatedMesh;
         }
+
+
+        private void OnDrawGizmos()
+        {
+            if (weights == null || weights.Length == 0)
+            {
+                return;
+            }
+            for (int x = 0; x < GridMetrics.PointsPerChunk(0); x++)
+            {
+                for (int y = 0; y < GridMetrics.PointsPerChunk(0); y++)
+                {
+                    for (int z = 0; z < GridMetrics.PointsPerChunk(0); z++)
+                    {
+                        int index = x + GridMetrics.PointsPerChunk(0) * (y + GridMetrics.PointsPerChunk(0) * z);
+                        float noiseValue = weights[index];
+                        Gizmos.color = Color.Lerp(Color.black, Color.white, noiseValue);
+                        Gizmos.DrawCube(new Vector3(x, y, z), Vector3.one * .2f);
+                    }
+                }
+            }
+        }
     }
 }

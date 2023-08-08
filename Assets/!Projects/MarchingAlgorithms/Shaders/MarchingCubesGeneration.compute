@@ -2,7 +2,6 @@
 #pragma kernel UpdateWeights
 
 #include "Includes\MarchingCubesTable.hlsl"
-#include "Includes\MarchingTetrahedrasTable.hlsl"
 #include "Includes\MetricsCompute.hlsl"
 
 struct Triangle
