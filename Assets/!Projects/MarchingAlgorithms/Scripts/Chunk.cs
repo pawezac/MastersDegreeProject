@@ -1,13 +1,15 @@
 ﻿using NaughtyAttributes;
+using StarterAssets;
 using System;
+using System.Collections;
 using UnityEngine;
-using UnityEngine.UIElements;
+using static UnityEditor.FilePathAttribute;
 
 namespace MarchingTerrainGeneration
 {
     public class Chunk : MonoBehaviour
     {
-        enum MarchType { MarchCubes, MarchTetrahedra };
+        public enum MarchType { MarchCubes, MarchTetrahedra };
 
         [SerializeField] MarchType marchType;
         [SerializeField] ComputeShader marchCubesGenerationShader;
@@ -15,7 +17,7 @@ namespace MarchingTerrainGeneration
         [SerializeField] NoiseGenerator noiseGenerator;
         [SerializeField] MeshFilter meshFilter;
         [SerializeField] MeshCollider meshCollider;
-        [SerializeField, Range(0, 8), OnValueChanged(nameof(CreateTerrain))] int lodLVL;
+        [SerializeField, Range(0, 8)] int lodLVL;
         [SerializeField] private int terrainScale;
 
         Mesh generatedMesh;
@@ -50,9 +52,12 @@ namespace MarchingTerrainGeneration
         //Weights buffer contains the noise values generated in the first part of this tutorial
         ComputeBuffer weightsBuffer;
 
+        ProjectManager projectManager;
+
         private void Awake()
         {
             noiseGenerator.onValuesChanged += CreateTerrainOnNoiseChanged;
+            projectManager = FindObjectOfType<ProjectManager>(true);
         }
 
         [Button]
@@ -73,26 +78,26 @@ namespace MarchingTerrainGeneration
         }
 
         [Button]
-        public void Test()
+        public void Test(MarchType marchType, int lodlvl)
         {
-            int[] scales = new int[] { 64, 128, 256 , 512, 1024 , 2048, 4096 };
-
-            marchType = MarchType.MarchCubes;
+            int scale = 512;
+            lodLVL = lodlvl;
             Setup();
-            for (int i = 0; i < scales.Length; i++)
-            {
-                GridMetrics.Scale = scales[i];
-                CreateTerrain();
-            }
+            GridMetrics.Scale = scale;
+            CreateTerrain();
+        }
 
-            marchType = MarchType.MarchTetrahedra;
-            Setup();
+        public Vector3 GetNewPlayerPos()
+        {
+            var terrainCenter = generatedMesh.bounds.center;
+            Physics.Raycast(terrainCenter + (Vector3.up * 100), Vector3.down, out RaycastHit hit, 10000f);
+            return hit.point + Vector3.up * 2f;
+        }
 
-            for (int i = 0; i < scales.Length; i++)
-            {
-                GridMetrics.Scale = scales[i];
-                CreateTerrain();
-            }
+        public void Clear()
+        {
+            meshFilter.sharedMesh = null; ;
+            meshCollider.sharedMesh = null;
         }
 
         void CreateTerrainOnNoiseChanged() => CreateTerrain(true);
@@ -245,18 +250,22 @@ namespace MarchingTerrainGeneration
             {
                 return;
             }
-            for (int x = 0; x < GridMetrics.PointsPerChunk(0); x++)
+            //for (int x = 0; x < GridMetrics.PointsPerChunk(0); x++)
+            //{
+            //    for (int y = 0; y < GridMetrics.PointsPerChunk(0); y++)
+            //    {
+            //        for (int z = 0; z < GridMetrics.PointsPerChunk(0); z++)
+            //        {
+            //            int index = x + GridMetrics.PointsPerChunk(0) * (y + GridMetrics.PointsPerChunk(0) * z);
+            //            float noiseValue = weights[index];
+            //            Gizmos.color = Color.Lerp(Color.black, Color.white, noiseValue);
+            //            Gizmos.DrawCube(new Vector3(x, y, z), Vector3.one * .2f);
+            //        }
+            //    }
+            //}
+            if (generatedMesh != null)
             {
-                for (int y = 0; y < GridMetrics.PointsPerChunk(0); y++)
-                {
-                    for (int z = 0; z < GridMetrics.PointsPerChunk(0); z++)
-                    {
-                        int index = x + GridMetrics.PointsPerChunk(0) * (y + GridMetrics.PointsPerChunk(0) * z);
-                        float noiseValue = weights[index];
-                        Gizmos.color = Color.Lerp(Color.black, Color.white, noiseValue);
-                        Gizmos.DrawCube(new Vector3(x, y, z), Vector3.one * .2f);
-                    }
-                }
+                Gizmos.DrawWireCube(generatedMesh.bounds.center, generatedMesh.bounds.size);
             }
         }
     }
