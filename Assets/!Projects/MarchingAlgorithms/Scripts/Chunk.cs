@@ -1,9 +1,6 @@
 ﻿using NaughtyAttributes;
-using StarterAssets;
 using System;
-using System.Collections;
 using UnityEngine;
-using static UnityEditor.FilePathAttribute;
 
 namespace MarchingTerrainGeneration
 {
@@ -52,12 +49,9 @@ namespace MarchingTerrainGeneration
         //Weights buffer contains the noise values generated in the first part of this tutorial
         ComputeBuffer weightsBuffer;
 
-        ProjectManager projectManager;
-
         private void Awake()
         {
             noiseGenerator.onValuesChanged += CreateTerrainOnNoiseChanged;
-            projectManager = FindObjectOfType<ProjectManager>(true);
         }
 
         [Button]
